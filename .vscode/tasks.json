@@ -7,10 +7,10 @@
             "command": "C:/msys64/usr/bin/g++.exe",
             "args": [
                 "-g",
-                "-std=c++17",
+                "-std=c++20",
                 "-I${workspaceFolder}/include",
                 "-L${workspaceFolder}/lib",
-                "${workspaceFolder}/src/main.cpp",
+                "${workspaceFolder}/src/*.cpp",
                 "${workspaceFolder}/src/glad.c",
                 "-lglfw3dll",
                 "-o",

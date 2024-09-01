@@ -1,20 +1,15 @@
 #include <iostream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
-// shaders
-const char *vertexShaderSource = "#version 330 core\n"
-    "layout (location = 0) in vec3 aPos;\n"
-    "void main()\n"
-    "{\n"
-    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    "}\0";
-
-// end shaders
+#include <math.h>
+#include <string.h>
+#include <shader.hpp>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
     glViewport(0, 0, width, height);
 }
+
+const float pi = 3.14159275359;
 
 int main() {
     GLFWwindow* window;
@@ -34,54 +29,77 @@ int main() {
     
     glfwMakeContextCurrent(window);
 
-
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)){
         std::cerr << "Failed to initialize GLAD" << std::endl;        
         return -1;
     }
 
-    // glViewport(0, 0, 800, 600);
-    // glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    float vertices[] = {
+    // create shader program and link the shaders
+        float vertices[] = {
         -0.5f, -0.5f, 0.0f,
         0.5f, -0.5f, 0.0f,
         0.0f,  0.5f, 0.0f
     };  
-
-    // initialize vertex shader
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    // define buffer
-    unsigned int buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    // check shader was successfully created
-    int success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success){
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-        std::cerr << "Failed to compile vertex shader" << std::endl;
-        return -1;
-    }
-
-    // attach data to the buffer
+    
+    // vertex buffer object
+    unsigned int VBO;
+    glGenBuffers(1, &VBO);
+    // Copy vertices into buffer
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // Set the vertix attributes pointers
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    // vertex array object
+    unsigned int VAO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    Shader shader("shader.vs", "shader.fs");
 
     while(!glfwWindowShouldClose(window)){
-        // draw here
+        // update here
+        // the memory from the first vertice to the index of 2 is copied to p1
+        // re-allocate the buffer
+        // this code is likely in the incorrect place
+        shader.use();
+        shader.setFloat("someUniform", 1.0f);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+
+        
         glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(shader.ID);
+
+        float timeValue = glfwGetTime();
+        float greenValue = sin(timeValue) / 2.0f + 0.5f;
+
+        int vertexColorLocation = glGetUniformLocation(shader.ID, "ourColor");
+        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+        
+        glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
-        glEnd();
-        // swap front and back buffer
+        
         glfwSwapBuffers(window);
-        // poll for events
         glfwPollEvents();
+        // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        // glEnableVertexAttribArray(0);
+
+        // draw here
+        // glClear(GL_COLOR_BUFFER_BIT);
+        // use the shaderProgram
+            // glUseProgram(shaderProgram);
+            // glBindVertexArray(VAO);
+            // glDrawArrays(GL_TRIANGLES, 0, 3);
+            // glEnd();
+        // swap front and back buffer
+            // glfwSwapBuffers(window);
+        // poll for events
+            // glfwPollEvents();
     }
 
     glfwTerminate();
