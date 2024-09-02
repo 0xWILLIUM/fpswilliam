@@ -5,7 +5,9 @@
 #include <stb_image.h>
 #include <filesystem>
 #include <shader.h>
-
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -116,6 +118,11 @@ int main()
     stbi_image_free(data);
 
 
+    glm::mat4 trans(1.0f);
+    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0)); // rotate 90 degrees
+    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5)); // scale down by 0.5
+    unsigned int transformLoc = glGetUniformLocation(shader.ID, "transform");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
