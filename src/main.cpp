@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <vertices.h>
 #include <camera.h>
+#include <iostream>
 // GLOBAL DECLARATIONS
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -18,11 +19,19 @@ float pitch = 0.0f, yaw = -90.0f;
 bool firstMouse = true;
 
 Camera camera = Camera();
-
+bool state = false;
 // FUNCTION PROTOTYPES
 void processInput(GLFWwindow* window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xPos, double yPos);
+
+glm::vec3 positions[] = {
+    // glm::vec3(0.0f,0.0f,0.0f), // sample value
+    glm::vec3(3.0f,0.0f, -10.0f),
+    glm::vec3(-3.0f, 0.0f, -10.0f),
+    glm::vec3(0.0f, 0.0f, -10.0f),
+    // glm::vec3(0.0f, 0.0f, -3.0f)
+};
 
 int main() {
     glfwInit();
@@ -48,13 +57,6 @@ int main() {
     Shader shader("shader.vs", "shader.fs");
 
     float vertices[] = {CUBE};
-    glm::vec3 positions[] = {
-        glm::vec3(0.0f,0.0f,0.0f), // sample value
-        glm::vec3(3.0f,0.0f,0.0f),
-        glm::vec3(-3.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 3.0f),
-        glm::vec3(0.0f, 0.0f, -3.0f)
-    };
 
     // creating the buffers
     unsigned int VBO, VAO;
@@ -74,7 +76,7 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // processInput(window);
+        processInput(window);
 
         // clear the frame
         glClearColor(0.18f, 0.28f, 0.32f, 1.0f);
@@ -83,17 +85,18 @@ int main() {
         shader.use(); // not rlly too sure what calling the use method does;
         
         glm::mat4 view;
-        view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+        // view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
+        view = glm::lookAt(camera.pos, camera.front, camera.up);
         glm::mat4 projection = glm::mat4(1.0f); // might be a pointless declaration o_O
         // projection = glm::perspective(glm::radians(80.f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         projection = glm::perspective(glm::radians(60.f), (float) SCR_HEIGHT / (float) SCR_WIDTH, 0.1f, 100.0f);
-        projection = glm::translate(projection, glm::vec3(0.0f, 0.0f, -3.0f));
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+        // projection = glm::translate(projection, glm::vec3(0.0f, 0.0f, 0.0f));
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, 0.0f)); // this was translated by -0.3f on the z axis
         
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 3; i++) {
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, positions[i]);
             shader.setMat4("model", model);
@@ -142,6 +145,19 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
     camera.front = glm::normalize(direction);
 }
 
-void scroll_callback() { 
+void processInput(GLFWwindow* window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE))
+    glfwSetWindowShouldClose(window, true);
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1)){
+        for (int i = 0; i < 3; i++) {
 
+            auto x = camera.front * length(positions[i]);
+            std::cout << length(positions[i]) << std::endl;
+            std::cout << i << " " << x.x << " " << x.y << " " << x.z << std::endl;
+        };
+    }
 }
+
+// void scroll_callback() { 
+
+// }
