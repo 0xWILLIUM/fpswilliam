@@ -12,7 +12,8 @@ class Camera {
         pos = startPos;       // glm::vec3(0.0f, 0.0f, 3.0f);
     }
     Camera() {
-        Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+        pos = glm::vec3(0.0f, 0.0f, 3.0f);
+        front = glm::vec3(0.0f, 0.0f, -1.0f);
     }
 };
 
