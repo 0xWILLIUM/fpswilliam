@@ -7,6 +7,8 @@
 #include <vertices.h>
 #include <camera.h>
 #include <iostream>
+#include <cstdlib>
+
 // GLOBAL DECLARATIONS
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -19,11 +21,6 @@ float pitch = 0.0f, yaw = -90.0f;
 bool firstMouse = true;
 
 Camera camera = Camera();
-bool state = false;
-// FUNCTION PROTOTYPES
-void processInput(GLFWwindow* window);
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void mouse_callback(GLFWwindow* window, double xPos, double yPos);
 
 glm::vec3 positions[] = {
     // glm::vec3(0.0f,0.0f,0.0f), // sample value
@@ -33,7 +30,16 @@ glm::vec3 positions[] = {
     // glm::vec3(0.0f, 0.0f, -3.0f)
 };
 
+int clickCount = 0;
+
+// FUNCTION PROTOTYPES
+void processInput(GLFWwindow* window);
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xPos, double yPos);
+
+
 int main() {
+    std::srand(std::time(0));
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -88,8 +94,7 @@ int main() {
         // view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
         view = glm::lookAt(camera.pos, camera.front, camera.up);
         glm::mat4 projection = glm::mat4(1.0f); // might be a pointless declaration o_O
-        // projection = glm::perspective(glm::radians(80.f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-        projection = glm::perspective(glm::radians(60.f), (float) SCR_HEIGHT / (float) SCR_WIDTH, 0.1f, 100.0f);
+        projection = glm::perspective(glm::radians(60.f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         // projection = glm::translate(projection, glm::vec3(0.0f, 0.0f, 0.0f));
         view = glm::translate(view, glm::vec3(0.0f, 0.0f, 0.0f)); // this was translated by -0.3f on the z axis
         
@@ -149,15 +154,17 @@ void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
     glfwSetWindowShouldClose(window, true);
     if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1)){
+        clickCount++;
+        std::cout << clickCount << ":" << std::endl;
         for (int i = 0; i < 3; i++) {
+            glm::vec3 lookingAtTargDist = camera.front * length(positions[i]);
+            if (lookingAtTargDist.x > positions[i].x - 0.5f && lookingAtTargDist.x < positions[i].x + 0.5f
+            && lookingAtTargDist.y > positions[i].y - 0.5f && lookingAtTargDist.y < positions[i].y + 0.5f
+            && lookingAtTargDist.z > positions[i].z - 0.5f && lookingAtTargDist.z < positions[i].z + 0.5f) {
+                std::cout << "hit" << std::endl;
+                // remove target and respawn
 
-            auto x = camera.front * length(positions[i]);
-            std::cout << length(positions[i]) << std::endl;
-            std::cout << i << " " << x.x << " " << x.y << " " << x.z << std::endl;
-        };
+            }
+        }
     }
 }
-
-// void scroll_callback() { 
-
-// }
