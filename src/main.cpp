@@ -8,6 +8,7 @@
 #include <camera.h>
 #include <iostream>
 #include <cstdlib>
+#include <ctime>
 
 // GLOBAL DECLARATIONS
 const unsigned int SCR_WIDTH = 800;
@@ -30,7 +31,7 @@ glm::vec3 positions[] = {
     // glm::vec3(0.0f, 0.0f, -3.0f)
 };
 
-int clickCount = 0;
+bool mouseDown = false;
 
 // FUNCTION PROTOTYPES
 void processInput(GLFWwindow* window);
@@ -153,17 +154,27 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
     glfwSetWindowShouldClose(window, true);
-    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1)){
-        clickCount++;
-        std::cout << clickCount << ":" << std::endl;
+    
+    if (mouseDown
+    && !glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
+        mouseDown = false;
+    
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !mouseDown) {
+        mouseDown = true;
         for (int i = 0; i < 3; i++) {
             glm::vec3 lookingAtTargDist = camera.front * length(positions[i]);
-            if (lookingAtTargDist.x > positions[i].x - 0.5f && lookingAtTargDist.x < positions[i].x + 0.5f
+            if (lookingAtTargDist.x > positions[i].x - 0.5f && lookingAtTargDist.x < positions[i].x + 0.5f // copilot ahhh generated code
             && lookingAtTargDist.y > positions[i].y - 0.5f && lookingAtTargDist.y < positions[i].y + 0.5f
             && lookingAtTargDist.z > positions[i].z - 0.5f && lookingAtTargDist.z < positions[i].z + 0.5f) {
-                std::cout << "hit" << std::endl;
                 // remove target and respawn
-
+                std::cout << "hit" << std::endl;
+                // create a vector to describe the direction of new target
+                // we want z to be a negative value, positive values will produce behavior such that targets will spawn behind the player
+                glm::vec3 newTarg;
+                newTarg.x = std::rand() % 10 - 5; // i like this
+                newTarg.y = 0.0f;
+                newTarg.z = -sqrt((float) pow(10.0f,2) - pow(newTarg.x,2));
+                positions[i] = newTarg;
             }
         }
     }
