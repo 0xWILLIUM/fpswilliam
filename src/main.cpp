@@ -37,11 +37,14 @@ bool mouseDown = false;
 void processInput(GLFWwindow* window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xPos, double yPos);
-
+void drawCrosshair();
 
 int main() {
     std::srand(std::time(0));
-    glfwInit();
+    if (!glfwInit()){
+        std::cerr << "Failed to initialize GLFW" << std::endl;
+        return -1;
+    }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -49,6 +52,7 @@ int main() {
     GLFWwindow* window;
     window = glfwCreateWindow(800, 600, "williamfps", NULL, NULL);
     if (!window) {
+        std::cerr << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
     }
@@ -57,12 +61,14 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
     
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cerr << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
 
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shader.vs", "shader.fs");
-
     float vertices[] = {CUBE};
 
     // creating the buffers
@@ -71,12 +77,14 @@ int main() {
     glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
-    glEnableVertexAttribArray(0);
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
+    
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0); // unbinds the vertex array
+
+
     
     while (!glfwWindowShouldClose(window)){
         float currentFrame = glfwGetTime();
@@ -91,9 +99,7 @@ int main() {
 
         shader.use(); // not rlly too sure what calling the use method does;
         
-        glm::mat4 view;
-        // view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
-        view = glm::lookAt(camera.pos, camera.front, camera.up);
+        glm::mat4 view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
         glm::mat4 projection = glm::mat4(1.0f); // might be a pointless declaration o_O
         projection = glm::perspective(glm::radians(60.f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         // projection = glm::translate(projection, glm::vec3(0.0f, 0.0f, 0.0f));
@@ -102,12 +108,15 @@ int main() {
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         
+        glBindVertexArray(VAO);
         for (int i = 0; i < 3; i++) {
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, positions[i]);
             shader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+        glBindVertexArray(0);
+        drawCrosshair();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -116,7 +125,54 @@ int main() {
 
     glDeleteVertexArrays(0, &VAO);
     glDeleteBuffers(0, &VBO);
+    glfwTerminate();
     return 0;
+}
+
+void drawCrosshair() {
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glPushMatrix();
+
+    glm::mat4 projection = glm::ortho(0.0f, (float) SCR_WIDTH, 0.0f, (float) SCR_HEIGHT);
+    glm::mat4 model = glm::mat4(1.0f);
+    
+    Shader crosshairShader("crosshair.vs", "crosshair.fs");
+    crosshairShader.use();
+    crosshairShader.setMat4("projection", projection);
+    crosshairShader.setMat4("model", model);
+
+    glDisable(GL_DEPTH_TEST);
+
+    float xhairSize = 10.0f;
+    float centerX = SCR_WIDTH / 2.0f;
+    float centerY = SCR_HEIGHT / 2.0f;
+
+    float crosshair[] = {
+        centerX - xhairSize, centerY,
+        centerX + xhairSize, centerY,
+        centerX, centerY - xhairSize,
+        centerX, centerY + xhairSize
+    };
+
+    unsigned int VBO, VAO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(crosshair), crosshair, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+
+    glDrawArrays(GL_LINES, 0, 4);
+    glBindVertexArray(0); // what is the purpose of this?
+    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &VAO);
+
+    glPopMatrix();
+    glPopAttrib();
+    glEnable(GL_DEPTH_TEST);
 }
 
 void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
@@ -153,12 +209,11 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
-    glfwSetWindowShouldClose(window, true);
+        glfwSetWindowShouldClose(window, true);
     
     if (mouseDown
     && !glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
         mouseDown = false;
-    
     if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !mouseDown) {
         mouseDown = true;
         for (int i = 0; i < 3; i++) {
@@ -166,14 +221,11 @@ void processInput(GLFWwindow* window) {
             if (lookingAtTargDist.x > positions[i].x - 0.5f && lookingAtTargDist.x < positions[i].x + 0.5f // copilot ahhh generated code
             && lookingAtTargDist.y > positions[i].y - 0.5f && lookingAtTargDist.y < positions[i].y + 0.5f
             && lookingAtTargDist.z > positions[i].z - 0.5f && lookingAtTargDist.z < positions[i].z + 0.5f) {
-                // remove target and respawn
                 std::cout << "hit" << std::endl;
-                // create a vector to describe the direction of new target
-                // we want z to be a negative value, positive values will produce behavior such that targets will spawn behind the player
                 glm::vec3 newTarg;
                 newTarg.x = std::rand() % 10 - 5; // i like this
-                newTarg.y = 0.0f;
-                newTarg.z = -sqrt((float) pow(10.0f,2) - pow(newTarg.x,2));
+                newTarg.y = std::rand() % 5 - 2.5f;
+                newTarg.z = -sqrt(100.0f - pow(newTarg.x, 2) - pow(newTarg.z, 2));
                 positions[i] = newTarg;
             }
         }
