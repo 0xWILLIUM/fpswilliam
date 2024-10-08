@@ -9,7 +9,9 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-
+#include <vector>
+#include <stb_image.h>
+#include <format>
 // GLOBAL DECLARATIONS
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -18,7 +20,7 @@ float lastFrame = 0.0f, deltaTime = 0.0f;
 
 float lastX = SCR_WIDTH / 2.0f, lastY = SCR_HEIGHT / 2.0f;
 float pitch = 0.0f, yaw = -90.0f;
-
+unsigned int loadCubeMap(std::vector<std::string> faces);
 bool firstMouse = true;
 
 Camera camera = Camera();
@@ -31,7 +33,7 @@ glm::vec3 positions[] = {
     // glm::vec3(0.0f, 0.0f, -3.0f)
 };
 
-bool mouseDown = false;
+volatile bool mouseDown = false;
 
 // FUNCTION PROTOTYPES
 void processInput(GLFWwindow* window);
@@ -69,9 +71,21 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shader.vs", "shader.fs");
+    Shader skyboxShader("skybox.vs", "skybox.fs");
     float vertices[] = {CUBE};
 
     // creating the buffers
+    unsigned int skyboxVBO, skyboxVAO;
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
+    
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -84,8 +98,17 @@ int main() {
     glEnableVertexAttribArray(0);
     glBindVertexArray(0); // unbinds the vertex array
 
-
+    std::vector<std::string> skybox = {
+        "skybox/skybox1RT.png",
+        "skybox/skybox1lf.png",
+        "skybox/skybox1UP.png",
+        "skybox/skybox1DN.png",
+        "skybox/skybox1FT.png",
+        "skybox/skybox1BK.png"
+    };
     
+    unsigned int skyboxTexture = loadCubeMap(skybox);
+
     while (!glfwWindowShouldClose(window)){
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
@@ -97,14 +120,23 @@ int main() {
         glClearColor(0.18f, 0.28f, 0.32f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);        
 
-        shader.use(); // not rlly too sure what calling the use method does;
-        
+        glDepthMask(GL_FALSE);
+        skyboxShader.use();
+        skyboxShader.setMat4("view", glm::mat4(glm::mat3(glm::lookAt(camera.pos, camera.pos + camera.front, camera.up))));
+        skyboxShader.setMat4("projection", glm::perspective(glm::radians(60.f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f));
         glm::mat4 view = glm::lookAt(camera.pos, camera.pos + camera.front, camera.up);
         glm::mat4 projection = glm::mat4(1.0f); // might be a pointless declaration o_O
         projection = glm::perspective(glm::radians(60.f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        
         // projection = glm::translate(projection, glm::vec3(0.0f, 0.0f, 0.0f));
         view = glm::translate(view, glm::vec3(0.0f, 0.0f, 0.0f)); // this was translated by -0.3f on the z axis
         
+        glBindVertexArray(skyboxVAO);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthMask(GL_TRUE);
+        
+        shader.use(); // not rlly too sure what calling the use method does;
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         
@@ -210,7 +242,12 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
         glfwSetWindowShouldClose(window, true);
-    
+    if (glfwGetKey(window, GLFW_KEY_D)) {
+        for (int i = 0; i < 3; i++){
+            std::cout << "target " << i <<" hit, respawning at x:" << positions[i].x << " y: "<< positions[i].y << " z: "<< positions[i].z <<"\n" << std::endl;
+
+        }
+    }
     if (mouseDown
     && !glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
         mouseDown = false;
@@ -221,13 +258,38 @@ void processInput(GLFWwindow* window) {
             if (lookingAtTargDist.x > positions[i].x - 0.5f && lookingAtTargDist.x < positions[i].x + 0.5f // copilot ahhh generated code
             && lookingAtTargDist.y > positions[i].y - 0.5f && lookingAtTargDist.y < positions[i].y + 0.5f
             && lookingAtTargDist.z > positions[i].z - 0.5f && lookingAtTargDist.z < positions[i].z + 0.5f) {
-                std::cout << "hit" << std::endl;
                 glm::vec3 newTarg;
                 newTarg.x = std::rand() % 10 - 5; // i like this
                 newTarg.y = std::rand() % 5 - 2.5f;
-                newTarg.z = -sqrt(100.0f - pow(newTarg.x, 2) - pow(newTarg.z, 2));
+                newTarg.z = -sqrt(100.0f - pow(newTarg.x, 2) - pow(newTarg.y, 2));
                 positions[i] = newTarg;
             }
         }
     }
+
+}
+unsigned int loadCubeMap(std::vector<std::string> faces) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    int width, height, nrChannels;
+
+    for (unsigned int i = 0; i < faces.size(); i++) {
+        unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        } else {
+            std::cout << "Failed to load texture at: "<< i << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    return textureID;
 }
