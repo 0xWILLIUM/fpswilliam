@@ -186,16 +186,16 @@ int main() {
 
 void renderCubes(Shader shader, glm::vec3 cubePositions[]) {
     for (unsigned int i =0; i < 3; i++) {
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            shader.setMat4("model", model);
-            if (i == targIndex) {
-                shader.setVec3("color", targColor);
-            } else {
-                shader.setVec3("color", glm::vec3(targColor.r / 1.5, targColor.g / 1.5, targColor.b / 1.5)); 
-            }
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, cubePositions[i]);
+        shader.setMat4("model", model);
+        if (i == targIndex) {
+            shader.setVec3("color", targColor);
+        } else {
+            shader.setVec3("color", glm::vec3(targColor.r / 1.5, targColor.g / 1.5, targColor.b / 1.5)); 
         }
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 }
 
 void processInput(GLFWwindow *window) {

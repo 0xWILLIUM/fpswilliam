@@ -35,6 +35,12 @@ glm::vec3 positions[] = {
 
 volatile bool mouseDown = false;
 
+#define _DEBUG
+
+#ifdef _DEBUG
+bool _dDown = false;
+#endif
+
 // FUNCTION PROTOTYPES
 void processInput(GLFWwindow* window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -70,8 +76,8 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
-    Shader shader("shader.vs", "shader.fs");
-    Shader skyboxShader("skybox.vs", "skybox.fs");
+    Shader shader("shaders/shader.vs", "shaders/shader.fs");
+    Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
     float vertices[] = {CUBE};
 
     // creating the buffers
@@ -168,7 +174,7 @@ void drawCrosshair() {
     glm::mat4 projection = glm::ortho(0.0f, (float) SCR_WIDTH, 0.0f, (float) SCR_HEIGHT);
     glm::mat4 model = glm::mat4(1.0f);
     
-    Shader crosshairShader("crosshair.vs", "crosshair.fs");
+    Shader crosshairShader("shaders/crosshair.vs", "shaders/crosshair.fs");
     crosshairShader.use();
     crosshairShader.setMat4("projection", projection);
     crosshairShader.setMat4("model", model);
@@ -242,12 +248,17 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE))
         glfwSetWindowShouldClose(window, true);
-    if (glfwGetKey(window, GLFW_KEY_D)) {
+    #ifdef _DEBUG
+    if (glfwGetKey(window, GLFW_KEY_D) & !_dDown) {
         for (int i = 0; i < 3; i++){
             std::cout << "target " << i <<" hit, respawning at x:" << positions[i].x << " y: "<< positions[i].y << " z: "<< positions[i].z <<"\n" << std::endl;
 
         }
+        _dDown = true;
+    } else if (!glfwGetKey(window, GLFW_KEY_D)) {
+        _dDown = false;
     }
+    #endif
     if (mouseDown
     && !glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1))
         mouseDown = false;
