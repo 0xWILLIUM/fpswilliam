@@ -41,11 +41,23 @@ volatile bool mouseDown = false;
 bool _dDown = false;
 #endif
 
+// structs
+struct SphereData {
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<float> normals;
+};
+
+
 // FUNCTION PROTOTYPES
 void processInput(GLFWwindow* window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xPos, double yPos);
 void drawCrosshair();
+SphereData generateSphereVertices(float radius, unsigned int rings, unsigned int sectors);
+
+
+
 
 int main() {
     std::srand(std::time(0));
@@ -78,30 +90,43 @@ int main() {
 
     Shader shader("shaders/shader.vs", "shaders/shader.fs");
     Shader skyboxShader("shaders/skybox.vs", "shaders/skybox.fs");
-    float vertices[] = {CUBE};
-
+    float skyboxvertices[] = {CUBE};
+    
+    
     // creating the buffers
     unsigned int skyboxVBO, skyboxVAO;
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
     glBindVertexArray(skyboxVAO);
     glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxvertices), skyboxvertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
+    SphereData sphereData = generateSphereVertices(0.6f, 100, 100);
     
-    unsigned int VBO, VAO;
+    unsigned int VBO, VAO, EBO, NBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+    glGenBuffers(1, &NBO);
 
     glBindVertexArray(VAO);
+
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
+    glBufferData(GL_ARRAY_BUFFER, sphereData.vertices.size() * sizeof(float), &sphereData.vertices[0], GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
     glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, NBO);
+    glBufferData(GL_ARRAY_BUFFER, sphereData.normals.size() * sizeof(float), &sphereData.normals[0], GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphereData.indices.size() * sizeof(unsigned int), &sphereData.indices[0], GL_STATIC_DRAW);
+
     glBindVertexArray(0); // unbinds the vertex array
 
     std::vector<std::string> skybox = {
@@ -146,12 +171,18 @@ int main() {
         shader.setMat4("projection", projection);
         shader.setMat4("view", view);
         
+        // light
+        shader.setVec3("lightPos", glm::vec3(0.0f, 0.0f, 0.0f));
+        shader.setVec3("viewPos", camera.pos);
+        shader.setVec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+        shader.setVec3("objectColor", glm::vec3(1.0f, 0.5f, 0.31f));
+
         glBindVertexArray(VAO);
         for (int i = 0; i < 3; i++) {
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, positions[i]);
             shader.setMat4("model", model);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glDrawElements(GL_TRIANGLES, sphereData.indices.size(), GL_UNSIGNED_INT, 0);
         }
         glBindVertexArray(0);
         drawCrosshair();
@@ -264,21 +295,30 @@ void processInput(GLFWwindow* window) {
         mouseDown = false;
     if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) && !mouseDown) {
         mouseDown = true;
-        for (int i = 0; i < 3; i++) {
-            glm::vec3 lookingAtTargDist = camera.front * length(positions[i]);
-            if (lookingAtTargDist.x > positions[i].x - 0.5f && lookingAtTargDist.x < positions[i].x + 0.5f // copilot ahhh generated code
-            && lookingAtTargDist.y > positions[i].y - 0.5f && lookingAtTargDist.y < positions[i].y + 0.5f
-            && lookingAtTargDist.z > positions[i].z - 0.5f && lookingAtTargDist.z < positions[i].z + 0.5f) {
+        for (glm::vec3 & vec : positions) {
+           glm::vec3 lookingAtTargDist = camera.front * length(vec);
+            if (lookingAtTargDist.x > vec.x - 0.5f && lookingAtTargDist.x < vec.x + 0.5f // copilot ahhh generated code
+            && lookingAtTargDist.y > vec.y - 0.5f && lookingAtTargDist.y < vec.y + 0.5f
+            && lookingAtTargDist.z > vec.z - 0.5f && lookingAtTargDist.z < vec.z + 0.5f) {
                 glm::vec3 newTarg;
                 newTarg.x = std::rand() % 10 - 5; // i like this
                 newTarg.y = std::rand() % 5 - 2.5f;
                 newTarg.z = -sqrt(100.0f - pow(newTarg.x, 2) - pow(newTarg.y, 2));
-                positions[i] = newTarg;
-            }
+                // check if the new target collides with the other targets
+                bool collides = false;
+                for (glm::vec3 targ : positions) {
+                    if (targ == vec) continue;
+                    if (targ.x == newTarg.x && targ.y == newTarg.y && targ.z == newTarg.z) {
+                        collides = true;
+                        break;
+                    }
+                }
+                vec = newTarg;
+            } 
         }
     }
-
 }
+
 unsigned int loadCubeMap(std::vector<std::string> faces) {
     unsigned int textureID;
     glGenTextures(1, &textureID);
@@ -304,3 +344,45 @@ unsigned int loadCubeMap(std::vector<std::string> faces) {
 
     return textureID;
 }
+
+SphereData generateSphereVertices(float radius, unsigned int rings, unsigned int sectors) {
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<float> normals;
+    const float PI = 3.14159265359f;
+
+    for (unsigned int r = 0; r <= rings; ++r) {
+        for (unsigned int s = 0; s <= sectors; ++s) {
+            float y = sin(-PI / 2.0f + PI * r / rings);
+            float x = cos(2.0f * PI * s / sectors) * sin(PI * r / rings);
+            float z = sin(2.0f * PI * s / sectors) * sin(PI * r / rings);
+
+            vertices.push_back(x * radius);
+            vertices.push_back(y * radius);
+            vertices.push_back(z * radius);
+
+            normals.push_back(x);
+            normals.push_back(y);
+            normals.push_back(z);
+        }
+    }
+
+    for (unsigned int r = 0; r < rings; ++r) {
+        for (unsigned int s = 0; s < sectors; ++s) {
+            unsigned int curRow = r * (sectors + 1);
+            unsigned int nextRow = (r + 1) * (sectors + 1);
+
+            indices.push_back(curRow + s);
+            indices.push_back(nextRow + s);
+            indices.push_back(nextRow + s + 1);
+
+            indices.push_back(curRow + s);
+            indices.push_back(nextRow + s + 1);
+            indices.push_back(curRow + s + 1);
+        }
+    }
+
+    return {vertices, indices, normals};
+}
+
+// std::vector<float> generateSphereIndexes()
